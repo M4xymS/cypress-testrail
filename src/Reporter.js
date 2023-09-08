@@ -41,11 +41,9 @@ class Reporter {
         this.screenshotsEnabled = configService.isScreenshotsEnabled();
         this.includeAllCasesDuringCreation = configService.includeAllCasesDuringCreation();
         this.includeAllFailedScreenshots = configService.includeAllFailedScreenshots();
-
         this.modeCreateRun = !configService.hasRunID();
         this.closeRun = configService.shouldCloseRun();
         this.foundCaseIds = [];
-
         this.statusConverter = new CypressStatusConverter(configService.getStatusPassed(), configService.getStatusFailed(), configService.getStatusSkipped());
 
         this.customComment = customComment !== undefined && customComment !== null ? customComment : '';
@@ -129,13 +127,13 @@ class Reporter {
      * @private
      */
     async _afterSpec(spec, results) {
-        // if we are in the mode to dynamically create runs
-        // then we also need to add the newly found runs to our created test run
-        // but only if we don't want to associate all cases during creation
+
+        // Initialize index for selecting screenshots
+        let screenshotIndex = 0;
+
         if (this.modeCreateRun && !this.includeAllCasesDuringCreation) {
             for (let i = 0; i < results.tests.length; i++) {
                 const test = results.tests[i];
-
                 // extract our custom test data from the Cypress test object
                 const testData = new TestData(test);
 
@@ -146,13 +144,25 @@ class Reporter {
                 for (let i = 0; i < foundCaseIDs.length; i++) {
                     this.foundCaseIds.push(foundCaseIDs[i]);
                 }
+
+                // Check if the test state is 'failed'
+                if (test.state === 'failed') {
+                    // Ensure there are screenshots available
+                    if (screenshotIndex < results.screenshots.length) {
+                        const screenshot = results.screenshots[screenshotIndex];
+                        // Add the screenshot to the test
+                        test.screenshot = screenshot;
+                        screenshotIndex++;
+                    }
+                }
+                const testid = { testId: foundCaseIDs.toString() };
+                Object.assign(test, testid);
             }
 
             for (let i = 0; i < this.runIds.length; i++) {
                 await this.testrail.updateRun(this.runIds[i], this.foundCaseIds);
             }
         }
-
         await this._sendSpecResults(spec, results);
     }
 
@@ -197,9 +207,7 @@ class Reporter {
 
         for (let i = 0; i < results.tests.length; i++) {
             const cypressTestResult = results.tests[i];
-
             const convertedTestResult = new TestData(cypressTestResult);
-
             // if we have a skipped test, then do NOT send it in create-mode
             // only if we have an existing test run in TestRail
             if (convertedTestResult.isSkipped() && this.modeCreateRun) {
@@ -210,15 +218,13 @@ class Reporter {
             const testRailStatusID = this.statusConverter.convertToTestRail(convertedTestResult.getState());
 
             let screenshotPaths = [];
-
             // if we have a failed test, then extract the screenshot
             if (convertedTestResult.isFailed()) {
-                screenshotPaths = this._getScreenshotByTestId(cypressTestResult.testId, results.screenshots);
+                screenshotPaths.push(convertedTestResult.getScreenshot())
                 if (screenshotPaths === null) {
                     screenshotPaths = [];
                 }
             }
-
             let comment = 'Tested by Cypress';
 
             // this is already part of the run description
@@ -246,9 +252,7 @@ class Reporter {
             // for each found case id for TestRail later on
             for (let i = 0; i < foundCaseIDs.length; i++) {
                 const caseId = foundCaseIDs[i];
-
                 const result = new Result(caseId, testRailStatusID, comment, convertedTestResult.getDurationMS(), screenshotPaths);
-
                 allResults.push(result);
             }
         }
