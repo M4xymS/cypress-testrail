@@ -13,7 +13,6 @@ class Result {
         this._comment = comment;
         this._durationMS = duration;
         this._screenshotPaths = screenshotPaths;
-
         if (this._screenshotPaths === undefined) {
             this._screenshotPaths = [];
         }
