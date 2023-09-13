@@ -133,7 +133,6 @@ class TestRail {
                 ColorConsole.success('  TestRail result ' + resultId + ' sent for TestCase C' + result.getCaseId());
 
                 const screenshotPaths = result.getScreenshotPaths();
-
                 if (this.isScreenshotsEnabled && screenshotPaths.length) {
                     ColorConsole.debug('    sending screenshots to TestRail for TestCase C' + result.getCaseId());
 
@@ -173,7 +172,6 @@ class TestRail {
      */
     sendBatchResults(runID, testResults) {
         const url = '/add_results_for_cases/' + runID;
-
         const postData = {
             results: [],
         };
@@ -206,7 +204,6 @@ class TestRail {
 
                     testResults.forEach((result, i) => {
                         const screenshotPaths = result.getScreenshotPaths();
-
                         if (screenshotPaths.length) {
                             // there is no identifier, to match both, but
                             // we usually get the same order back as we sent it to TestRail
